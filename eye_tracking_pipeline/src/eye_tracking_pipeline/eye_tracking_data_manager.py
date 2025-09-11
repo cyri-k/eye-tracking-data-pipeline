@@ -235,7 +235,7 @@ def aggregate_processed_data(output_dir: str, meta_table: pd.DataFrame) -> pd.Da
             trial_times = data_table.loc[data_table.trial == trial, 'time']
             data_table.loc[data_table.trial == trial, 'timeFromOnsetMs'] = trial_times - onset_time - 3
             
-        data_table.loc[:, ['in','Subject','Country','Institution','Version', 'Session','missingPercent','Run', 'numberOfTrials']] = meta_table.loc[data_table_file, ['in','Subject','Country','Institution','Version', 'Session','missingPercent','Run', 'numberOfTrials']].values
+        data_table.loc[:, ['in','Subject','Country','Institution','Version', 'Session','missingPercent','Run', 'numberOfTrials','ifControlGroup']] = meta_table.loc[data_table_file, ['in','Subject','Country','Institution','Version', 'Session','missingPercent','Run', 'numberOfTrials','ifControlGroup']].values
         data_table.loc[:, 'out'] = meta_table.loc[data_table_file,:].name
 
         data_tables.append(data_table)

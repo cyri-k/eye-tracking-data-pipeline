@@ -29,14 +29,17 @@ def run_pipeline(input_dir: str,
     """
     meta_table = generate_metatable(input_dir)
     
+    
+    
     # Participants without marked session
     session_lookup = {
         (row['Subject'], row['Version']): row['Session']
         for _, row in no_session_table.iterrows()
     }
     for idx in meta_table.index:
-        # Skip Control group (has no sessions)
+        # Control group -> only session 1
         if((meta_table.at[idx, 'Country'] == 'Control Group')):
+            meta_table.at[idx, 'Session'] = 1
             continue
         same_trial = meta_table[(meta_table.Subject == meta_table.at[idx, 'Subject']) &
                                 (meta_table.Country == meta_table.at[idx, 'Country']) & 
@@ -76,10 +79,10 @@ def run_pipeline(input_dir: str,
             meta_table.at[i, 'conversionError'] = result_dict['errorMessage']
             continue
         
-        # Don't overwrite if already got from no_session_table or subject has no A/B pair, unless marked as session 2
+        # Don't overwrite if already got from no_session_table, unless marked as session 2
         if (result_dict['session'] == 2):
             meta_table.at[i, 'Session'] = 2
-        elif (meta_table.at[i, 'Session'] is None) and (meta_table.at[i, 'ifSubjectHasPairAB'] == True):
+        elif (meta_table.at[i, 'Session'] is None):
             meta_table.at[i, 'Session'] = result_dict['session']
         
         experiment_df = result_dict['df']

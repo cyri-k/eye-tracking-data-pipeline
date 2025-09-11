@@ -99,11 +99,11 @@ def generate_metatable(input_dir: str) -> pd.DataFrame:
             "missingCount": None,       # Updated later
             "missingPercent": None,     # Updated later
             "numberOfTrials": None,     # Updated later
-            "Session": None,            # Updated later     
+            "Session": 1 if if_control_group else None,# Updated later     
             "institutionCode": institution_code,
             "path": relative_path,
             "ifControlGroup": if_control_group,
-            "ifSubjectHasPairAB": None,  # Updated later
+            "ifSubjectHasPairAB": None, # Updated later
             "conversionError": None     # Updated later 
         })
         
