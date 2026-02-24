@@ -123,10 +123,11 @@ def eye_tracking_hdf5_to_df(data_file_path: str) -> dict:
             tstart_events['trial'] = tstart_events['text'].str.extract(r'tStart\s+(\d+)').astype(int)+1
             tstart_events['end_time'] = events_df.loc[events_df['text'].str.startswith('tEnd', na=False),'time'].tolist()
             
-            if len(events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist())==20:
-                tstart_events['posPerm'] = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist()
-            else: # TODO: Save experiment with fewer trials anyway
-                raise ValueError(f'Not 20: {data_file_path}')
+            # if len(events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist())==20:
+            #     tstart_events['posPerm'] = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist()
+            # else: # TODO: Save experiment with fewer trials anyway
+            #     raise ValueError(f'Not 20: {data_file_path}')
+            tstart_events['posPerm'] = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist()
             tstart_events=tstart_events.rename(columns={'time': 'start_time'})
             
             tstart_events = tstart_events.sort_values('start_time').reset_index(drop=True)    
@@ -242,7 +243,7 @@ def aggregate_processed_data(output_dir: str, meta_table: pd.DataFrame) -> pd.Da
     return pd.concat(data_tables, ignore_index=True)
     
 if __name__ == "__main__":
-    input_dir=r'C:\Users\Cyril\HESSENBOX\Eye-Tracking_LAVA (Jasmin Devi Nuscheler)\Data_from_different_participants'
+    input_dir=r'C:\Users\Cyril\Nextcloud\Eye-Tracking_LAVA\Data_from_different_participants'
     output_dir=r'C:\dev\grk-2700\eye_tracking_pipeline\tests\results'
-    data_file_path = 'C:\\Users\\Cyril\\HESSENBOX\\Eye-Tracking_LAVA (Jasmin Devi Nuscheler)\\Data_from_different_participants\\2.Germany\\Primary_school\\A\\069_trackerTest2022_2_5_2024-06-13_08h05.39.112.hdf5'
+    data_file_path = 'C:\\Users\\Cyril\\Nextcloud\\Eye-Tracking_LAVA\\Data_from_different_participants\\2.Germany\\Primary_school\\A\\069_trackerTest2022_2_5_2024-06-13_08h05.39.112.hdf5'
     eye_tracking_hdf5_to_df(data_file_path)

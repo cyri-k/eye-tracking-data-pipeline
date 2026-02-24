@@ -3,6 +3,7 @@ import os
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -36,7 +37,7 @@ def run_pipeline(input_dir: str,
         (row['Subject'], row['Version']): row['Session']
         for _, row in no_session_table.iterrows()
     }
-    for idx in meta_table.index:
+    for idx in tqdm(meta_table.index, desc="Processing metadata"):
         # Control group -> only session 1
         if((meta_table.at[idx, 'Country'] == 'Control Group')):
             meta_table.at[idx, 'Session'] = 1
@@ -61,7 +62,7 @@ def run_pipeline(input_dir: str,
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)  
     # Iterate through each file entry in the metadata table
-    for i, file_meta_row in meta_table.iterrows(): # meta_table[meta_table['in'] == '082_trackerTest2022_2_5_2024-06-14_08h11.24.487.hdf5']
+    for i, file_meta_row in tqdm(meta_table.iterrows(), desc="Processing files", total=meta_table.shape[0]): # meta_table[meta_table['in'] == '082_trackerTest2022_2_5_2024-06-14_08h11.24.487.hdf5']
         
         # Check if already processed
         # if os.path.exists(os.path.join(output_dir, file_meta_row['out'])):

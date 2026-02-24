@@ -239,7 +239,7 @@ filters = [
       {'folder':'6.Mean Switzerland/6.2.grundschule', 'prefix':'6.2.1.', 'country':'Schweiz', 'condition':'standard', 'institution':'Grundschule'},
       {'folder':'6.Mean Switzerland/6.2.grundschule', 'prefix':'6.2.2.', 'country':'Schweiz', 'condition':'alemannic_austria', 'institution':'Grundschule'},
 ]
-def generate_line_plots_by_filter(aggregated_df, filters=filters):
+def generate_line_plots_by_filter(aggregated_df, filters=filters, lang='de', xaxis_range=[0,2800]):
     # Filtration
     def filter_aggregated_df_copy(df,
                             country = 'All countries', 
@@ -268,12 +268,24 @@ def generate_line_plots_by_filter(aggregated_df, filters=filters):
     institution_map = {'All institutions': 'All-inst',
         'KiGa': 'KiGa',
         'Grundschule':'GS'}
-    aoi_map = {
-        'semantic_image' : 'Semantischer Distraktor', 
-        'phonological_image' : 'Phonologischer Distraktor', 
-        'target_image': 'Target',
-        'unrelated_image': 'Bezugsfreier Ablenker',
-    }
+    if lang == 'de':
+        aoi_map = {
+            'semantic_image' : 'Semantischer Distraktor', 
+            'phonological_image' : 'Phonologischer Distraktor', 
+            'target_image': 'Target',
+            'unrelated_image': 'Bezugsfreier Ablenker',
+        }
+        xaxis_title="Zeit in Abhängigkeit zum Stimulus-Onset (ms)"
+        yaxis_title="Fixationsproportion (%)"
+    else:
+        aoi_map = {
+            'semantic_image' : 'Semantic competitor', 
+            'phonological_image' : 'Phonological competitor', 
+            'target_image': 'Target word',
+            'unrelated_image': 'Unrelated distractor',
+        }
+        xaxis_title="Time relative to the onset of the stimulus (ms)"
+        yaxis_title="Fixation proportion (%)"
     aggregated_df = aggregated_df.replace({"AOI": aoi_map})
     # no_session_table = pd.read_csv("../Participants/no_session_participants.csv", delimiter=';')
     for filter_dict in filters:
@@ -282,9 +294,7 @@ def generate_line_plots_by_filter(aggregated_df, filters=filters):
                 'institution':'All institutions',
                 'session':1}
         filter.update(filter_dict)
-        
     
-            
         aggr_fix_df = filter_aggregated_df_copy(
             aggregated_df,
             country = filter['country'],
@@ -305,12 +315,13 @@ def generate_line_plots_by_filter(aggregated_df, filters=filters):
                 title_font=dict(size=14,
                             color='grey',
                             family='Arial'),
-                xaxis_title="Zeit in Abhängigkeit zum Stimulus-Onset (ms)",  # Add x-axis name
-                yaxis_title="Fixationsproportion (%)",  # Add y-axis name
+                xaxis_title=xaxis_title,  # Add x-axis name
+                yaxis_title=yaxis_title,  # Add y-axis name
                 font=dict(size=22),
                 title_y=0.05,
                 margin=dict(l=20, r=20, t=20, b=170),
         )
+        fig.update_xaxes(range=xaxis_range)
 
         # fig.show(config=fig_config)
         file_dir = "C:/Users/Cyril/Desktop/" + filter_dict['folder'] + '/'
@@ -318,7 +329,7 @@ def generate_line_plots_by_filter(aggregated_df, filters=filters):
         file_name = plot_title + '.png'
         print(os.path.join(file_dir, plot_title))
         fig.write_image(os.path.join(file_dir, file_name),
-                    format='.png', width=1200, height=470, scale=3,engine='orca')
+                    format='png', width=1200, height=470, scale=3)
             
 def gaze_heatmap_plot(subject_full_df, input_dir, file_path):
     # Points of interest positions
@@ -396,7 +407,7 @@ def gaze_heatmap_plot(subject_full_df, input_dir, file_path):
         image_file = conditions_df.loc[trialNr, img_type]
         fig.add_layout_image(
                 dict(
-                    source=Image.open(os.path.join(r'C:\Users\Cyril\HESSENBOX\Eye-Tracking_LAVA (Jasmin Devi Nuscheler)\Experiment_PsychoPy\A\Stims', image_file + '.png')),
+                    source=Image.open(os.path.join(r'C:\Users\Cyril\Nextcloud\Eye-Tracking_LAVA\Experiment_PsychoPy\A\Stims', image_file + '.png')),
                     xref="x",
                     yref="y",
                     x=xp-roi_x/2,
