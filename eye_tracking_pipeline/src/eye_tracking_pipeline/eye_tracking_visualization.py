@@ -27,9 +27,9 @@ def fixation_proportion_line(aggregated_df,
     binned_rois = binned_rois.dropna()
     
     fig = px.line(binned_rois.loc[:, binned_rois.columns.notna()], 
-                  color_discrete_sequence=["#EECC66", "#EE99AA","#994455","#004488"])
+                  color_discrete_sequence=["#5b8efd", "#725def","#dd217d","#ff5f00"])
     
-    fig.add_vrect(x0=0, x1=2000, line_width=0, fillcolor="blue", opacity=0.03)
+    fig.add_vrect(x0=-3000, x1=0, line_width=0, fillcolor="white", opacity=0.4)
     fig.update_layout(
             xaxis_title=xaxis_title,  # Add x-axis name
             yaxis_title=yaxis_title,  # Add y-axis name
@@ -309,7 +309,7 @@ def generate_line_plots_by_filter(aggregated_df, filters=filters, lang='de', xax
                 plot_title = filter['prefix'] + title # condition_map[filter['condition']]
         
         fig = fixation_proportion_line(aggr_fix_df)
-        fig.add_vrect(x0=0, x1=2000, line_width=0, fillcolor="blue", opacity=0.1)
+        # fig.add_vrect(x0=0, x1=2000, line_width=0, fillcolor="white", opacity=0.02)
         fig.update_layout(
                 title=title,
                 title_font=dict(size=14,
