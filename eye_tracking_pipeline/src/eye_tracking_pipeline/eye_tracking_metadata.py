@@ -12,10 +12,10 @@ import numpy as np
 import pandas as pd
 
 country_meta = {
-    '0.Adult_control_group': {'label': 'Control Group', 'code': 'Ctrl'},
-    '1.Austria':     {'label': 'Österreich', 'code': 'AT'},
-    '2.Germany':     {'label': 'Deutschland', 'code': 'DE'},
-    '3.Switzerland': {'label': 'Schweiz', 'code': 'CH'}
+    '0.Adult_control_group': {'label': 'Control Group', 'code': 'Ctrl', 'code_nr': '4'},
+    '1.Austria':     {'label': 'Österreich', 'code': 'AT', 'code_nr': '1'},
+    '2.Germany':     {'label': 'Deutschland', 'code': 'DE', 'code_nr': '2'},
+    '3.Switzerland': {'label': 'Schweiz', 'code': 'CH', 'code_nr': '3'}
 }
 institution_meta = {
     'Primary_school':       {'label': 'Grundschule', 'code': 'GS'},
@@ -71,9 +71,11 @@ def generate_metatable(input_dir: str) -> pd.DataFrame:
         if len(split_name) == 6: # Older subject code format
             institution_code = "None"
             subject_code = split_name[0]
+            experiment_nr = str.join('_', [country_meta[country]['code_nr'], '#', subject_code])
         elif len(split_name) == 8: # Updated subject code format
             institution_code = split_name[1]
-            subject_code = split_name[2]
+            subject_code = split_name[2] 
+            experiment_nr = str.join('_', [split_name[0], split_name[1].zfill(2), split_name[2].zfill(3)])
         else:
             raise ValueError(f"Non-standard file name: {hdf5_file_name}")
         
@@ -86,6 +88,7 @@ def generate_metatable(input_dir: str) -> pd.DataFrame:
         meta_dict[output_file_name].append({
             "out": output_file_name, 
             "Subject": int(subject_code),
+            "Experiment-Nr.": experiment_nr,
             "Country": country_meta[country]['label'],
             "Institution": institution_meta[institution]['label'],
             "Version": exp_version,

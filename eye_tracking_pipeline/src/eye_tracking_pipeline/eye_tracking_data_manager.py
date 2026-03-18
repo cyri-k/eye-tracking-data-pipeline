@@ -51,11 +51,15 @@ def clean_pupil(row):
 
 def eye_tracking_hdf5_to_df(data_file_path: str) -> dict:
     file_name = data_file_path.split('\\')[-1]
-    with h5py.File(data_file_path, 'r') as hdf: 
-        try:
+    try:
+        with h5py.File(data_file_path, 'r') as hdf: 
             # Handle meta data
             session_meta_data = hdf['data_collection']['session_meta_data']
-            recorded_session = int(session_meta_data['code'][0])
+            session_code = session_meta_data['code']
+            if len(session_code) == 0:
+                recorded_session = None
+            else:
+                recorded_session = int(session_code[0])
             
             trial_file_csv = data_file_path.replace('.hdf5','.csv')
             trial_meta_df = pd.read_csv(trial_file_csv,skiprows=range(1,7),usecols=range(0,6))
@@ -123,13 +127,24 @@ def eye_tracking_hdf5_to_df(data_file_path: str) -> dict:
             tstart_events['trial'] = tstart_events['text'].str.extract(r'tStart\s+(\d+)').astype(int)+1
             tstart_events['end_time'] = events_df.loc[events_df['text'].str.startswith('tEnd', na=False),'time'].tolist()
             
-            # if len(events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist())==20:
-            #     tstart_events['posPerm'] = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist()
-            # else: # TODO: Save experiment with fewer trials anyway
-            #     raise ValueError(f'Not 20: {data_file_path}')
-            tstart_events['posPerm'] = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].text.str.split(': ',expand=True)[3].tolist()
-            tstart_events=tstart_events.rename(columns={'time': 'start_time'})
+            # Extract posPerm from Target: events in chronological order (matching tStart order)
+            target_events = events_df.loc[events_df['text'].str.startswith('Target:', na=False)].copy()
+            target_events['posPerm'] = target_events['text'].str.split(': ', expand=True)[3]
             
+            # Both tstart_events and target_events inherit events_df order (chronological),
+            # so aligning by reset index is safe — one Target: message is logged per trial.
+            tstart_events = tstart_events.sort_values('time').reset_index(drop=True)
+            target_events = target_events.reset_index(drop=True)
+            
+            if len(target_events) not in [18, 20]:
+                raise ValueError(f'Not 20 or 18 Trials ({len(target_events)}): {data_file_path}')
+            
+            # Trim tstart_events to the number of actual trials (handles 18-trial experiments
+            # where tStart/tEnd markers may still total 20 but only 18 Target: events exist)
+            tstart_events = tstart_events.iloc[:len(target_events)].reset_index(drop=True)
+            tstart_events['posPerm'] = target_events['posPerm'].values
+
+            tstart_events = tstart_events.rename(columns={'time': 'start_time'})
             tstart_events = tstart_events.sort_values('start_time').reset_index(drop=True)    
             eye_tracking_df = eye_tracking_df.sort_values('time').reset_index(drop=True)
 
@@ -160,14 +175,14 @@ def eye_tracking_hdf5_to_df(data_file_path: str) -> dict:
                 "df": trial_df
             }
         
-        except Exception as e:
-            # raise e
-            return {
-                "conversionSuccess": 0,
-                "session": None,
-                "errorMessage": f"Error: {str(e)}",
-                "df": None
-            }
+    except Exception as e:
+        # raise e
+        return {
+            "conversionSuccess": 0,
+            "session": None,
+            "errorMessage": f"Error: {str(e)}",
+            "df": None
+        }
             
 class IDTFixationSaccadeClassifier:
     def __init__(self, threshold: float = 0.03, win_len: int = 12):
@@ -241,6 +256,107 @@ def aggregate_processed_data(output_dir: str, meta_table: pd.DataFrame) -> pd.Da
 
         data_tables.append(data_table)
     return pd.concat(data_tables, ignore_index=True)
+    
+def overwrite_sessions_from_overview(meta_table, df_overview):
+    df_overview['Subject'] = df_overview['Experiment-Nr.'].astype(str).apply(lambda x: x if '/' in x else x[-3:])
+    if 'Bemerkung' in df_overview.columns:
+        df_overview = df_overview.drop(columns=['Bemerkung'])
+    df_overview = df_overview.set_index(['VP-Code', 'Land', 'Kohorte', 'Experiment-Nr.', 'Verson'])['Subject'].str.split('/').explode().reset_index()
+    
+    df_overview['Version-Duplicate'] = df_overview['Verson']
+    df_overview['Version'] = None
+    paired_filter = df_overview['Experiment-Nr.'].str.contains("/").fillna(False)
+    df_overview.loc[paired_filter, 'Version'] = df_overview.loc[paired_filter, :].apply(lambda x: x['Verson'].split("/")[0] if x['Subject'] == x['Experiment-Nr.'].split("/")[0] else x['Verson'].split("/")[1], axis=1)
+    df_paired_versions = df_overview.loc[paired_filter, :]
+    
+    df_unpaired_versions = df_overview.loc[~paired_filter, :].set_index(['VP-Code', 'Land', 'Kohorte', 'Experiment-Nr.', 'Subject', 'Version', 'Verson'])['Version-Duplicate'].str.split('/').explode().reset_index()
+    df_unpaired_versions['Version'] = df_unpaired_versions['Version-Duplicate']
+    df_overview = pd.concat([df_paired_versions, df_unpaired_versions])
+    
+    df_overview['Session'] = df_overview.apply(lambda x: 1 if x['Version'] == x['Verson'].split("/")[0] else 2, axis=1)
+    
+    df_overview.rename(columns={'Land': 'Country', 'Kohorte': 'Institution'}, inplace=True)
+    df_overview.Country.replace({'D': 'Deutschland', 'CH': 'Schweiz', 'A': 'Österreich'}, inplace=True)
+    df_overview.Institution.replace({'GS': 'Grundschule'}, inplace=True)
+    
+    df_overview['Subject'] = df_overview['Subject'].astype(np.int64)
+    df_overview.drop(columns=['Version-Duplicate'], inplace=True)
+    
+    # Add columns to track comparison results
+    meta_table_copy = meta_table.copy()
+    # meta_table_copy['Subject'] = meta_table_copy['Subject'].astype(str).str.zfill(3)
+    # meta_table_copy = meta_table_copy[~meta_table_copy.ifControlGroup]
+    meta_table_copy['in_overview'] = False
+    meta_table_copy['session_match'] = None
+    
+    # Iterate through meta_table rows
+    # New format with specified Institution code, which is otherwise '#'
+    for idx, row in meta_table_copy[~meta_table_copy['Experiment-Nr.'].str.contains('#')].iterrows():
+        if row.ifControlGroup:
+            meta_table_copy.at[idx, 'in_overview'] = None
+            continue
+    
+        matching_rows = df_overview[
+            (df_overview['VP-Code'] == row['Experiment-Nr.']) &
+            (df_overview['Version'] == row['Version'])
+        ]
+        if not matching_rows.empty:
+            meta_table_copy.at[idx, 'in_overview'] = True
+            if matching_rows.iloc[0]['Session'] == row['Session']:
+                meta_table_copy.at[idx, 'session_match'] = True
+            else:
+                meta_table_copy.at[idx,'Session'] = matching_rows.iloc[0]['Session']
+                meta_table_copy.at[idx, 'session_match'] = "Overwritten"
+        else:
+            meta_table_copy.at[idx, 'in_overview'] = False
+            continue
+        
+            
+    # Old format without specified Institution code, set to '#'
+    for idx, row in meta_table_copy[meta_table_copy['Experiment-Nr.'].str.contains('#')].iterrows():
+        if row.ifControlGroup:
+            meta_table_copy.at[idx, 'in_overview'] = None
+            continue
+        country = row['Country']
+        subject = row['Subject']
+        institution = row['Institution']
+        version = row['Version']
+        session_num = row['Session']
+        
+        # Check if session exists in df_overview with matching Subject, Institution, Version
+        matching_rows = df_overview[
+            (df_overview['Country'] == country) &
+            (df_overview['Subject'] == subject) &
+            (df_overview['Institution'] == institution) &
+            (df_overview['Version'] == version)
+        ]
+        
+        if len(matching_rows) > 1:
+            meta_table_copy.at[idx, 'in_overview'] = True
+            if matching_rows.Session.nunique() != 1:
+                # print(f"Multiple matches with different sessions for Subject {subject}, Institution {institution}, Version {version}. Please check df_overview.")
+                meta_table_copy.at[idx, 'session_match'] = "Multiple matches with different sessions"
+            elif session_num == matching_rows.iloc[0]['Session']:
+                meta_table_copy.at[idx, 'session_match'] = True
+            else:
+                meta_table_copy.at[idx,'Session'] = matching_rows.iloc[0]['Session']
+                meta_table_copy.at[idx, 'session_match'] = "Overwritten"
+                continue
+        elif not matching_rows.empty:
+            meta_table_copy.at[idx, 'in_overview'] = True
+            
+            # Check if session number also matches
+            overview_session = matching_rows.iloc[0]['Session']
+            if session_num == overview_session:
+                meta_table_copy.at[idx, 'session_match'] = True
+            else:
+                meta_table_copy.at[idx,'Session'] = overview_session
+                meta_table_copy.at[idx, 'session_match'] = "Overwritten"
+        else:
+            meta_table_copy.at[idx, 'in_overview'] = False
+            continue
+    
+    return meta_table_copy
     
 if __name__ == "__main__":
     input_dir=r'C:\Users\Cyril\Nextcloud\Eye-Tracking_LAVA\Data_from_different_participants'

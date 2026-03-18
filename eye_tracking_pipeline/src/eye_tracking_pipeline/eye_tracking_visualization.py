@@ -29,7 +29,7 @@ def fixation_proportion_line(aggregated_df,
     fig = px.line(binned_rois.loc[:, binned_rois.columns.notna()], 
                   color_discrete_sequence=["#EECC66", "#EE99AA","#994455","#004488"])
     
-    fig.add_vrect(x0=0, x1=2000, line_width=0, fillcolor="blue", opacity=0.07)
+    fig.add_vrect(x0=0, x1=2000, line_width=0, fillcolor="blue", opacity=0.03)
     fig.update_layout(
             xaxis_title=xaxis_title,  # Add x-axis name
             yaxis_title=yaxis_title,  # Add y-axis name
