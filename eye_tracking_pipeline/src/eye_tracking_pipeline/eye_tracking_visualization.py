@@ -27,7 +27,7 @@ def fixation_proportion_line(aggregated_df,
     binned_rois = binned_rois.dropna()
     
     fig = px.line(binned_rois.loc[:, binned_rois.columns.notna()], 
-                  color_discrete_sequence=["#009e73", "#5b8efd", "#dd217d","#ff5f00"])
+                  color_discrete_sequence=["#009e73", "#ff5f00","#994455","#004488"])
     
     fig.add_vrect(x0=-3000, x1=0, line_width=0, fillcolor="white", opacity=0.4)
     fig.update_layout(
